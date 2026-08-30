@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 	"net/http"
+
+	"github.com/tiwazs/gnosis-gateway/internal/auth"
 	"github.com/tiwazs/gnosis-gateway/internal/config"
 	"github.com/tiwazs/gnosis-gateway/internal/proxy"
 )
@@ -33,7 +35,7 @@ func main() {
 	})
 
 	// Endpoints
-	
+
 	mux.Handle("/workspace", WorkspaceService)
 	mux.Handle("/workspace/", WorkspaceService)
 	mux.Handle("/iot", IotService)
@@ -46,7 +48,7 @@ func main() {
 	log.Printf("Main server: %s", cfg.MainService)
 	log.Printf("gateway listening on %s -> %s", cfg.Listen, cfg.MainService)
 
-	if err := http.ListenAndServe(cfg.Listen, mux); err != nil {
+	if err := http.ListenAndServe(cfg.Listen, auth.Wrap(mux, cfg)); err != nil {
 		log.Fatalf("Error starting server: %v", err)
 	}
 }
