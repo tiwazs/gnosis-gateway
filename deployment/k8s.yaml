@@ -1,0 +1,140 @@
+---
+# ------------------------------------#
+# ConfigMap                           #
+# ------------------------------------#
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ${K8S_SERVICE_NAME}
+  namespace: ${K8S_NAMESPACE}
+data:
+  LISTEN: "${LISTEN}"
+  MAIN_SERVICE: "${MAIN_SERVICE}"
+  WORKSPACE_SERVICE: "${WORKSPACE_SERVICE}"
+  IOT_SERVICE: "${IOT_SERVICE}"
+
+---
+# ------------------------------------#
+# Secret                              #
+# ------------------------------------#
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ${K8S_SERVICE_NAME}-secret
+  namespace: ${K8S_NAMESPACE}
+type: Opaque
+stringData:
+  TOKEN_KEY: "${TOKEN_KEY}"
+  GATEWAY_INTERNAL_SECRET: "${GATEWAY_INTERNAL_SECRET}"
+
+---
+# ------------------------------------#
+# Deployment                          #
+# ------------------------------------#
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${K8S_SERVICE_NAME}
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: ${K8S_SERVICE_NAME}
+spec:
+  replicas: ${K8S_MIN_REPLICAS}
+  selector:
+    matchLabels:
+      app: ${K8S_SERVICE_NAME}
+  template:
+    metadata:
+      labels:
+        app: ${K8S_SERVICE_NAME}
+    spec:
+      containers:
+      - name: ${K8S_SERVICE_NAME}
+        image: ${IMAGE_NAME}:${IMAGE_TAG}
+        imagePullPolicy: Always
+        envFrom:
+          - configMapRef:
+              name: ${K8S_SERVICE_NAME}
+          - secretRef:
+              name: ${K8S_SERVICE_NAME}-secret
+        ports:
+          - name: http
+            containerPort: ${PORT}
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          initialDelaySeconds: 3
+          periodSeconds: 5
+        resources:
+          requests:
+            cpu: ${K8S_RESOURCES_REQUESTS_CPU}
+            memory: ${K8S_RESOURCES_REQUESTS_MEMORY}
+          limits:
+            cpu: ${K8S_RESOURCES_LIMITS_CPU}
+            memory: ${K8S_RESOURCES_LIMITS_MEMORY}
+      imagePullSecrets:
+        - name: dockerhub-regcred
+
+---
+# ------------------------------------#
+# Service                             #
+# ------------------------------------#
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${K8S_SERVICE_NAME}
+  labels:
+    app: ${K8S_SERVICE_NAME}
+  namespace: ${K8S_NAMESPACE}
+spec:
+  type: ClusterIP
+  selector:
+    app: ${K8S_SERVICE_NAME}
+  ports:
+    - name: https
+      port: 443
+      protocol: TCP
+      targetPort: ${PORT}
+
+---
+# ------------------------------------#
+# Ingress                             #
+# ------------------------------------#
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ${K8S_SERVICE_NAME}
+  namespace: ${K8S_NAMESPACE}
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: "${CLUSTER_ISSUER}"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "${CORS_ALLOW_ORIGIN}"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization,x-access-token,ngrok-skip-browser-warning"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, PUT, POST, DELETE, PATCH, OPTIONS"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "120"
+spec:
+  tls:
+    - hosts:
+        - ${DOMAIN}
+      secretName: ${K8S_SERVICE_NAME}-tls
+  rules:
+    - host: ${DOMAIN}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ${K8S_SERVICE_NAME}
+                port:
+                  number: 443
