@@ -29,18 +29,18 @@ func TestWrapOptionsDoesNotReachNext(t *testing.T) {
 	}
 }
 
-func TestWrapGETAddsCORS(t *testing.T) {
+func TestWrapGETDoesNotAddCORS(t *testing.T) {
 	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("[]"))
 	})
-	req := httptest.NewRequest(http.MethodGet, "/workspace/workspaces", nil)
+	req := httptest.NewRequest(http.MethodGet, "/iot/devices", nil)
 	req.Header.Set("Origin", "http://localhost:3000")
 	rec := httptest.NewRecorder()
 
 	Wrap(next).ServeHTTP(rec, req)
 
-	if rec.Header().Get("Access-Control-Allow-Origin") != "http://localhost:3000" {
-		t.Fatalf("allow-origin=%q", rec.Header().Get("Access-Control-Allow-Origin"))
+	if rec.Header().Get("Access-Control-Allow-Origin") != "" {
+		t.Fatalf("GET should not set CORS (ingress does); got %q", rec.Header().Get("Access-Control-Allow-Origin"))
 	}
 }
