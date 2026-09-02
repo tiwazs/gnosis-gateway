@@ -6,6 +6,7 @@ import (
 
 	"github.com/tiwazs/gnosis-gateway/internal/auth"
 	"github.com/tiwazs/gnosis-gateway/internal/config"
+	appcors "github.com/tiwazs/gnosis-gateway/internal/cors"
 	"github.com/tiwazs/gnosis-gateway/internal/proxy"
 )
 
@@ -48,7 +49,7 @@ func main() {
 	log.Printf("Main server: %s", cfg.MainService)
 	log.Printf("gateway listening on %s -> %s", cfg.Listen, cfg.MainService)
 
-	if err := http.ListenAndServe(cfg.Listen, auth.Wrap(mux, cfg)); err != nil {
+	if err := http.ListenAndServe(cfg.Listen, appcors.Wrap(auth.Wrap(mux, cfg))); err != nil {
 		log.Fatalf("Error starting server: %v", err)
 	}
 }
