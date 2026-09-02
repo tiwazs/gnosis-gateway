@@ -29,7 +29,7 @@ func TestWrapOptionsDoesNotReachNext(t *testing.T) {
 	}
 }
 
-func TestWrapGETDoesNotAddCORS(t *testing.T) {
+func TestWrapGETAddsCORS(t *testing.T) {
 	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("[]"))
@@ -40,7 +40,13 @@ func TestWrapGETDoesNotAddCORS(t *testing.T) {
 
 	Wrap(next).ServeHTTP(rec, req)
 
-	if rec.Header().Get("Access-Control-Allow-Origin") != "" {
-		t.Fatalf("GET should not set CORS (ingress does); got %q", rec.Header().Get("Access-Control-Allow-Origin"))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d", rec.Code)
+	}
+	if rec.Header().Get("Access-Control-Allow-Origin") != "http://localhost:3000" {
+		t.Fatalf("allow-origin=%q", rec.Header().Get("Access-Control-Allow-Origin"))
+	}
+	if rec.Body.String() != "[]" {
+		t.Fatalf("body=%q", rec.Body.String())
 	}
 }

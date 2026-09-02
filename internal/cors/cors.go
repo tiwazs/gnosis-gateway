@@ -24,8 +24,29 @@ func applyCORS(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Vary", "Origin")
 }
 
-// Wrap answers OPTIONS at the gateway. Actual GET/POST CORS is left to
-// Ingress so we never emit a second Access-Control-Allow-Origin.
+type corsWriter struct {
+	http.ResponseWriter
+	req   *http.Request
+	wrote bool
+}
+
+func (w *corsWriter) WriteHeader(code int) {
+	if !w.wrote {
+		applyCORS(w.ResponseWriter, w.req)
+		w.wrote = true
+	}
+	w.ResponseWriter.WriteHeader(code)
+}
+
+func (w *corsWriter) Write(b []byte) (int, error) {
+	if !w.wrote {
+		w.WriteHeader(http.StatusOK)
+	}
+	return w.ResponseWriter.Write(b)
+}
+
+// Wrap answers OPTIONS and stamps exactly one Allow-Origin on GET/POST.
+// Backends (FastAPI) must not also send CORS; the proxy strips those first.
 func Wrap(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodOptions {
@@ -33,6 +54,6 @@ func Wrap(next http.Handler) http.Handler {
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
-		next.ServeHTTP(w, r)
+		next.ServeHTTP(&corsWriter{ResponseWriter: w, req: r}, r)
 	})
 }
