@@ -8,6 +8,7 @@ import (
 	"github.com/tiwazs/gnosis-gateway/internal/config"
 	appcors "github.com/tiwazs/gnosis-gateway/internal/cors"
 	"github.com/tiwazs/gnosis-gateway/internal/proxy"
+	"strings"
 )
 
 func main() {
@@ -41,6 +42,7 @@ func main() {
 	mux.Handle("/workspace/", WorkspaceService)
 	mux.Handle("/iot", IotService)
 	mux.Handle("/iot/", IotService)
+	mux.Handle("/devices/register/", rewritePathPrefix("/iot", IotService))
 
 	mux.Handle("/", MainService)
 
@@ -52,4 +54,13 @@ func main() {
 	if err := http.ListenAndServe(cfg.Listen, appcors.Wrap(auth.Wrap(mux, cfg))); err != nil {
 		log.Fatalf("Error starting server: %v", err)
 	}
+}
+
+func rewritePathPrefix(prefix string, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if !strings.HasPrefix(request.URL.Path, prefix) {
+			request.URL.Path = prefix + request.URL.Path
+		}
+		next.ServeHTTP(writer, request)
+	})
 }

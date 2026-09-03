@@ -16,7 +16,7 @@ func Skip(r *http.Request) bool {
 	if r.Method == http.MethodPost && (path == "/api/access/login" || path == "/api/access/register") {
 		return true
 	}
-	if r.Method == http.MethodPost && strings.HasPrefix(path, "/iot/devices/register/") && path != "/iot/devices/register/" {
+	if r.Method == http.MethodPost && isDeviceRegister(path) {
 		return true
 	}
 	if strings.HasPrefix(path, "/internal/auth") {
@@ -38,6 +38,15 @@ func isPublicDocs(path string) bool {
 		"/iot/openapi.json",
 	} {
 		if path == prefix || strings.HasPrefix(path, prefix+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+func isDeviceRegister(path string) bool {
+	for _, prefix := range []string{"/iot/devices/register/", "/devices/register/"} {
+		if strings.HasPrefix(path, prefix) && path != prefix {
 			return true
 		}
 	}
