@@ -16,6 +16,9 @@ func Skip(r *http.Request) bool {
 	if r.Method == http.MethodPost && (path == "/api/access/login" || path == "/api/access/register") {
 		return true
 	}
+	if r.Method == http.MethodPost && strings.HasPrefix(path, "/iot/devices/register/") && path != "/iot/devices/register/" {
+		return true
+	}
 	if strings.HasPrefix(path, "/internal/auth") {
 		return true
 	}
